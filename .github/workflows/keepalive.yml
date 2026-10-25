@@ -1,0 +1,15 @@
+name: Keepalive (Zeitplan aktiv halten)
+on:
+  schedule:
+    - cron: '29 4 1,15 * *'
+  workflow_dispatch:
+permissions:
+  actions: write
+jobs:
+  keep:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for w in models.yml keepalive.yml; do gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/$w/enable" && echo "$w aktiv"; done

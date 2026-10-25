@@ -1,0 +1,42 @@
+{
+  "updated": "2026-10-25",
+  "note": "Reihenfolge der Gratis-KIs. Wird woechentlich automatisch aktualisiert.",
+  "chain": [
+    {
+      "provider": "gemini",
+      "model": "gemini-flash-latest"
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-flash-lite-latest"
+    },
+    {
+      "provider": "groq",
+      "model": "llama-3.3-70b-versatile"
+    },
+    {
+      "provider": "groq",
+      "model": "openai/gpt-oss-120b"
+    },
+    {
+      "provider": "mistral",
+      "model": "mistral-small-latest"
+    },
+    {
+      "provider": "mistral",
+      "model": "codestral-latest"
+    },
+    {
+      "provider": "openrouter",
+      "model": "openrouter/free"
+    },
+    {
+      "provider": "openrouter",
+      "model": "google/gemma-4-26b-a4b-it:free"
+    },
+    {
+      "provider": "openrouter",
+      "model": "google/gemma-4-31b-it:free"
+    }
+  ]
+}
