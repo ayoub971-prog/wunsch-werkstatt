@@ -1,5 +1,5 @@
 /* Wunsch-Werkstatt: Wunsch -> Gratis-KI baut eine HTML-App. Schluessel nur im Browser (localStorage). */
-var APP_VERSION = 'v2';
+var APP_VERSION = 'v3';
 var $ = function (id) { return document.getElementById(id); };
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
@@ -7,9 +7,9 @@ function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '
 
 /* ---------- Anbieter ---------- */
 var PROVIDERS = {
-  gemini: { name: 'Google Gemini', link: 'https://aistudio.google.com/apikey', hint: 'Mit Google-Konto anmelden, „Create API key“.' },
-  groq: { name: 'Groq', link: 'https://console.groq.com/keys', base: 'https://api.groq.com/openai/v1', hint: 'Gratis-Konto, dann „Create API Key“.' },
-  mistral: { name: 'Mistral', link: 'https://console.mistral.ai/api-keys', base: 'https://api.mistral.ai/v1', hint: 'Gratis-Plan „Experiment“ wählen, dann Schlüssel erstellen.' },
+  gemini: { name: 'Google Gemini', link: 'https://aistudio.google.com/apikey', hint: 'Mit Google-Konto anmelden, dort auf „Create API key“ tippen.' },
+  groq: { name: 'Groq', link: 'https://console.groq.com/keys', base: 'https://api.groq.com/openai/v1', hint: 'Gratis-Konto erstellen, dort „Create API Key“ tippen.' },
+  mistral: { name: 'Mistral', link: 'https://console.mistral.ai/api-keys', base: 'https://api.mistral.ai/v1', hint: 'Gratis-Plan „Experiment“ wählen, dann einen Zugang erstellen.' },
   openrouter: { name: 'OpenRouter (optional)', link: 'https://openrouter.ai/keys', base: 'https://openrouter.ai/api/v1', hint: 'Nur Modelle mit „:free“ sind gratis.' }
 };
 var DEFAULT_CHAIN = [
@@ -20,7 +20,7 @@ var DEFAULT_CHAIN = [
 ];
 var CHAIN = DEFAULT_CHAIN.slice();
 var COOL = {};   // "provider/model" -> Zeitpunkt, bis wann pausiert (nach 429)
-function keyOf(p) { return (lsGet('ww.key.' + p) || '').trim(); }
+function keyOf(p) { return KEYS[p] || ''; }
 
 function loadModels() {
   return fetch('models.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
@@ -33,8 +33,8 @@ function loadModels() {
 
 var TIMEOUT = 90000;
 function httpErr(status, msg) { var e = new Error(msg || ('HTTP ' + status)); e.status = status; return e; }
-function callOne(item, system, user) {
-  var p = item.provider, key = keyOf(p), ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, TIMEOUT);
+function callOne(item, system, user, keyOverride) {
+  var p = item.provider, key = keyOverride || keyOf(p), ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, TIMEOUT);
   var req;
   if (p === 'gemini') {
     req = fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(item.model) + ':generateContent', {
@@ -61,6 +61,7 @@ function callOne(item, system, user) {
 }
 var lastLabel = '';
 /* Fallback-Kette: bei 429, 5xx, Netzwerk- oder Schluesselfehler -> naechstes Modell */
+var onBad = function (p) { addMsg('warn', '⚠️ Die Verbindung zu ' + PROVIDERS[p].name + ' funktioniert nicht mehr. Unter ⚙️ Einstellungen bitte neu einfügen.'); };
 function callChain(system, user, onSwitch) {
   var list = CHAIN.filter(function (x) { return keyOf(x.provider); });
   if (!list.length) return Promise.reject(new Error('NOKEY'));
@@ -76,7 +77,8 @@ function callChain(system, user, onSwitch) {
     }, function (e) {
       var s = e.status || 0;
       if (s === 429) COOL[item.provider + '/' + item.model] = Date.now() + 60000;
-      fails.push(label + ': ' + (s === 429 ? 'Limit erreicht' : s >= 500 ? 'Server-Fehler' : s === 0 ? 'keine Verbindung' : (s === 401 || s === 403) ? 'Zugang ungültig' : e.message));
+      if (s === 401 || s === 403 || (s === 400 && /API_KEY_INVALID|api key|expired/i.test(e.message))) { markBad(item.provider); s = 401; if (onBad) onBad(item.provider); }
+      fails.push(label + ': ' + (s === 429 ? 'Limit erreicht' : s >= 500 ? 'Server-Fehler' : s === 0 ? 'keine Verbindung' : (s === 401 || s === 403) ? 'Zugang ungültig' : 'Fehler'));
       return next();
     });
   }
@@ -172,11 +174,12 @@ function guessName(goal) { var w = goal.replace(/[^\wäöüÄÖÜ ]/g, ' ').trim
 function send() {
   if (busy) return;
   var raw = $('inp').value.trim(); if (!raw) return;
+  if (needsPin()) { ensureUnlocked('Bitte PIN eingeben, damit die KI arbeiten kann.').then(function (ok) { if (ok === true) send(); else if (ok === 'wiped') addMsg('warn', 'Alle Verbindungen gelöscht. Unter ⚙️ Einstellungen neu verbinden.'); }); return; }
   if (!CHAIN.some(function (x) { return keyOf(x.provider); })) { addMsg('warn', 'Zuerst unter ⚙️ Einstellungen eine KI verbinden (am besten Google Gemini).'); return; }
   var san = sanitize(raw);
   $('inp').value = '';
   addMsg('me', raw);
-  if (san.count) addMsg('warn', '🛡️ Achtung: ' + san.count + ' geheime Angabe(n) (Schlüssel, Passwort oder IP) gefunden. Ich habe sie durch [REDACTED_SECRET] ersetzt, bevor etwas an die KI ging. Bitte keine echten Schlüssel in den Wunsch schreiben.');
+  if (san.count) addMsg('warn', '🛡️ Achtung: ' + san.count + ' geheime Angabe(n) (Zugangsdaten, Passwort oder IP) gefunden. Ich habe sie durch [REDACTED_SECRET] ersetzt, bevor etwas an die KI ging. Bitte keine echten Zugangsdaten in den Wunsch schreiben.');
   var req = san.text;
   if (!S.goal) { S.goal = req; S.name = guessName(req); }
   if (COMPLEX_RE.test(req)) addMsg('warn', 'ℹ️ Das klingt gross (z. B. Server, Login oder Internet-Daten). Gratis-KIs bauen dann nur eine einfache Version. Ich sage dir, was fehlt.');
@@ -254,32 +257,123 @@ $('apps').addEventListener('click', function (e) {
   else if (act === 'del') { if (confirm('„' + x.name + '“ wirklich löschen?')) { saveApps(a.filter(function (y) { return y !== x; })); if (S.id === x.id) S.id = null; renderApps(); } }
 });
 
-/* ---------- Schluessel ---------- */
-function mask(k) { return '••••••' + (k.length > 12 ? k.slice(-4) : ''); }
+/* ---------- Zugaenge: verschluesselt (AES-GCM, Schluessel aus PIN via PBKDF2), entschluesselt nur im Speicher ---------- */
+var KEYS = {}, UNLOCKED = false, PIN_KEY = null, PIN_SALT = null, ITER = 600000;
+function vault() { try { return JSON.parse(lsGet('ww.vault') || 'null'); } catch (e) { return null; } }
+function conn() { try { return JSON.parse(lsGet('ww.conn') || '{}'); } catch (e) { return {}; } }
+function setConn(p, v) { var c = conn(); if (v) c[p] = v; else delete c[p]; lsSet('ww.conn', JSON.stringify(c)); }
+var b64 = function (u) { return btoa(String.fromCharCode.apply(null, new Uint8Array(u))); };
+var unb64 = function (s) { return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); }); };
+function derive(pin, salt) {
+  return crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveKey']).then(function (k) {
+    return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: salt, iterations: ITER, hash: 'SHA-256' }, k, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  });
+}
+function persist() {
+  var iv = crypto.getRandomValues(new Uint8Array(12));
+  return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, PIN_KEY, new TextEncoder().encode(JSON.stringify(KEYS))).then(function (ct) {
+    lsSet('ww.vault', JSON.stringify({ v: 1, iter: ITER, salt: b64(PIN_SALT), iv: b64(iv), ct: b64(ct) }));
+  });
+}
+function unlock(pin) {
+  var v = vault(); if (!v) return Promise.reject(new Error('none'));
+  return derive(pin, unb64(v.salt)).then(function (k) {
+    return crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(v.iv) }, k, unb64(v.ct)).then(function (pt) {
+      KEYS = JSON.parse(new TextDecoder().decode(pt)); PIN_KEY = k; PIN_SALT = unb64(v.salt); UNLOCKED = true;
+    });
+  });
+}
+function setPin(pin) {
+  PIN_SALT = crypto.getRandomValues(new Uint8Array(16));
+  return derive(pin, PIN_SALT).then(function (k) { PIN_KEY = k; UNLOCKED = true; return persist(); });
+}
+function wipe() { KEYS = {}; UNLOCKED = false; PIN_KEY = null; try { localStorage.removeItem('ww.vault'); localStorage.removeItem('ww.conn'); } catch (e) {} }
+/* alte unverschluesselte Eintraege (v1/v2) uebernehmen und loeschen */
+var LEGACY = {};
+Object.keys(PROVIDERS).forEach(function (p) { var k = lsGet('ww.key.' + p); if (k && k.trim()) LEGACY[p] = k.trim(); try { localStorage.removeItem('ww.key.' + p); } catch (e) {} });
+if (Object.keys(LEGACY).length) { KEYS = LEGACY; Object.keys(LEGACY).forEach(function (p) { setConn(p, 'ok'); }); }
+function needsPin() { return !!vault() && !UNLOCKED; }
+function hasAny() { return Object.keys(KEYS).length > 0; }
+
+/* PIN-Fenster: mode 'set' oder 'unlock' */
+function askPin(mode, why) {
+  return new Promise(function (resolve) {
+    var o = $('pinBox'), i1 = $('pin1'), i2 = $('pin2'), msg = $('pinMsg');
+    $('pinTitle').textContent = mode === 'set' ? 'PIN festlegen (4–6 Ziffern)' : 'PIN eingeben';
+    $('pinWhy').textContent = why || (mode === 'set' ? 'Damit niemand sonst deine KI-Verbindungen benutzen kann.' : 'Zum Entsperren der KI-Verbindung.');
+    i1.value = ''; i2.value = ''; i2.style.display = mode === 'set' ? 'block' : 'none'; $('pinForgot').style.display = mode === 'set' ? 'none' : 'inline-block';
+    msg.textContent = ''; o.style.display = 'flex'; setTimeout(function () { i1.focus(); }, 50);
+    function done(r) { o.style.display = 'none'; $('pinOk').onclick = $('pinCancel').onclick = $('pinForgot').onclick = null; resolve(r); }
+    $('pinCancel').onclick = function () { done(false); };
+    $('pinForgot').onclick = function () {
+      if (confirm('PIN vergessen? Dann werden alle KI-Verbindungen auf diesem Handy gelöscht und du musst sie neu einfügen.')) { wipe(); renderKeys(); renderChain(); done('wiped'); }
+    };
+    $('pinOk').onclick = function () {
+      var a = i1.value.trim();
+      if (!/^\d{4,6}$/.test(a)) { msg.textContent = 'Bitte 4 bis 6 Ziffern.'; return; }
+      if (mode === 'set') {
+        if (a !== i2.value.trim()) { msg.textContent = 'Die beiden PINs sind nicht gleich.'; return; }
+        msg.textContent = '⏳ …'; setPin(a).then(function () { done(true); });
+      } else {
+        msg.textContent = '⏳ prüfe …';
+        unlock(a).then(function () { done(true); }, function () { msg.textContent = '❌ Falscher PIN.'; i1.value = ''; });
+      }
+    };
+  });
+}
+function ensureUnlocked(why) { return needsPin() ? askPin('unlock', why) : Promise.resolve(true); }
+/* Zugang ungueltig/abgelaufen: entfernen, Feld erscheint wieder */
+function markBad(p) {
+  delete KEYS[p]; setConn(p, 'bad');
+  if (PIN_KEY) persist();
+  renderKeys(); renderChain();
+}
+
 function renderKeys() {
+  var c = conn();
   $('keyList').innerHTML = Object.keys(PROVIDERS).map(function (p) {
-    var P = PROVIDERS[p], k = keyOf(p);
-    return '<div class="card" data-p="' + p + '"><b>' + P.name + '</b> ' + (k ? '✅' : '') + '<div class="mut">Gratis-Zugang holen: <a href="' + P.link + '" target="_blank" rel="noopener">' + P.link.replace('https://', '') + '</a> · ' + P.hint + '</div>' +
-      (k ? '<div class="mut">Gespeichert: ' + mask(k) + '</div>' : '') +
-      '<div class="kin"><input type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="' + (k ? 'Neuen Zugang einfügen (ersetzt)' : 'Zugang hier einfügen') + '"><button data-a="eye" aria-label="Anzeigen">👁</button></div>' +
-      '<div class="row"><button class="main" data-a="save">Speichern</button><button data-a="test">Test</button><button data-a="del">Entfernen</button></div><div class="mut res"></div></div>';
+    var P = PROVIDERS[p], name = esc(P.name);
+    if (KEYS[p] || (c[p] === 'ok' && needsPin())) return '<div class="line" data-p="' + p + '">' + name + ' <span style="color:#3ccf91">✓ verbunden</span><button data-a="del">Trennen</button></div>';
+    return '<div class="card" data-p="' + p + '"><b>' + name + '</b>' +
+      (c[p] === 'bad' ? '<div class="warnline">Der Zugang funktioniert nicht mehr (abgelaufen oder ungültig). Bitte neu einfügen.</div>' : '') +
+      '<div class="mut">Gratis-Zugang holen: <a href="' + P.link + '" target="_blank" rel="noopener">' + P.link.replace('https://', '') + '</a> · ' + P.hint + '</div>' +
+      '<input type="password" name="ww-' + p + '-' + Date.now() + '" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore placeholder="Zugang hier einfügen">' +
+      '<div class="row"><button class="main" data-a="add">Verbinden</button></div><div class="mut res"></div></div>';
   }).join('');
+  $('keyList').querySelectorAll('input').forEach(function (i) {
+    ['copy', 'cut', 'dragstart', 'contextmenu'].forEach(function (ev) { i.addEventListener(ev, function (e) { e.preventDefault(); }); });
+  });
 }
 $('keyList').addEventListener('click', function (e) {
-  var b = e.target.closest('button'), c = e.target.closest('.card'); if (!b || !c) return;
-  var p = c.dataset.p, inp = c.querySelector('input'), res = c.querySelector('.res');
-  if (b.dataset.a === 'eye') { inp.type = inp.type === 'password' ? 'text' : 'password'; }
-  else if (b.dataset.a === 'save') { if (inp.value.trim()) lsSet('ww.key.' + p, inp.value.trim()); renderKeys(); renderChain(); }
-  else if (b.dataset.a === 'del') { try { localStorage.removeItem('ww.key.' + p); } catch (x) {} renderKeys(); renderChain(); }
-  else if (b.dataset.a === 'test') {
-    if (inp.value.trim()) { lsSet('ww.key.' + p, inp.value.trim()); inp.value = ''; inp.type = 'password'; c.querySelector('.mut + .mut, .mut:nth-of-type(2)'); }
-    if (!keyOf(p)) { res.textContent = 'Zuerst einen Zugang einfügen.'; return; }
-    var item = CHAIN.find(function (x) { return x.provider === p; }) || DEFAULT_CHAIN.find(function (x) { return x.provider === p; });
-    res.textContent = '⏳ teste ' + item.model + ' …';
-    callOne(item, 'Antworte nur mit OK.', 'Test').then(function () { res.textContent = '✅ Funktioniert (' + item.model + ')'; },
-      function (er) { res.textContent = '❌ ' + (er.status === 429 ? 'Limit erreicht, später nochmals' : (er.status === 401 || er.status === 403 || er.status === 400) ? 'Zugang ungültig' : er.status === 0 ? 'Keine Verbindung' : er.message); });
+  var b = e.target.closest('button'), c = e.target.closest('[data-p]'); if (!b || !c) return;
+  var p = c.dataset.p;
+  if (b.dataset.a === 'del') {
+    if (!confirm(PROVIDERS[p].name + ' trennen? Der Zugang wird von diesem Handy gelöscht.')) return;
+    delete KEYS[p]; setConn(p, null); (PIN_KEY ? persist() : Promise.resolve()).then(function () { renderKeys(); renderChain(); });
+    return;
   }
+  if (b.dataset.a !== 'add') return;
+  var inp = c.querySelector('input'), res = c.querySelector('.res'), k = inp.value.trim();
+  if (!k) { res.textContent = 'Zuerst einen Zugang einfügen.'; return; }
+  inp.value = ''; b.disabled = true;
+  var item = CHAIN.find(function (x) { return x.provider === p; }) || DEFAULT_CHAIN.find(function (x) { return x.provider === p; });
+  res.textContent = '⏳ prüfe Verbindung …';
+  callOne(item, 'Antworte nur mit OK.', 'Test', k).then(function () { return 'ok'; }, function (er) {
+    if (er.status === 429) return 'ok';   // Zugang gueltig, nur gerade am Limit
+    return er.status === 0 ? 'net' : 'bad';
+  }).then(function (r) {
+    b.disabled = false; k = r === 'ok' ? k : '';
+    if (r === 'net') { res.textContent = '❌ Keine Verbindung, bitte später nochmals.'; return; }
+    if (r === 'bad') { res.textContent = '❌ Zugang nicht akzeptiert. Bitte prüfen und neu einfügen.'; return; }
+    var key = k; k = '';
+    (PIN_KEY ? Promise.resolve(true) : askPin('set')).then(function (ok) {
+      if (!ok) { res.textContent = 'Ohne PIN wird nichts gespeichert.'; return; }
+      KEYS[p] = key; key = ''; setConn(p, 'ok');
+      return persist().then(function () { renderKeys(); renderChain(); });
+    });
+  });
 });
+
 function renderChain() {
   $('chainInfo').innerHTML = CHAIN.map(function (x, i) { return (i + 1) + '. ' + esc(PROVIDERS[x.provider].name.replace(' (optional)', '')) + ' · ' + esc(x.model) + (keyOf(x.provider) ? ' ✅' : ' (nicht verbunden)'); }).join('<br>');
 }
@@ -300,7 +394,7 @@ $('shareBtn').addEventListener('click', function () { if (S.code) share(S.name, 
 $('fullBtn').addEventListener('click', function () { document.body.classList.add('full'); });
 $('closeFull').addEventListener('click', function () { document.body.classList.remove('full'); });
 function welcome() { $('log').innerHTML = ''; addMsg('ki', 'Hoi Ayoub! 👋 Schreib oder sprich (🎤 auf der Tastatur) deinen Wunsch, z. B. „Ein Timer fürs Velo mit grossen Zahlen“. Danach kannst du sagen, was ich ändern soll.'); }
-$('setBtn').addEventListener('click', function () { go('keys'); });
+$('setBtn').addEventListener('click', function () { ensureUnlocked('Einstellungen sind mit PIN geschützt.').then(function (ok) { if (ok) { renderKeys(); renderChain(); go('keys'); } }); });
 $('newBtn').addEventListener('click', function () { S = { goal: '', code: '', history: [], name: '', id: null }; $('preview').className = ''; $('frame').srcdoc = ''; welcome(); go('chat'); });
 
 /* ---------- Version & Offline ---------- */
@@ -315,7 +409,9 @@ function verCheck() {
     Promise.all(p).catch(function () {}).then(function () { location.replace(location.pathname + '?v=' + encodeURIComponent(v.version)); });
   }).catch(function () {});
 }
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(function () {});
 verCheck();
 document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') verCheck(); });
 welcome(); renderKeys(); loadModels();
+if (hasAny() && !vault()) setTimeout(function () { askPin('set', 'Neu: Deine KI-Verbindungen werden jetzt mit einer PIN geschützt.').then(function (ok) { if (!ok) { KEYS = {}; addMsg('warn', 'Ohne PIN wurden die alten Verbindungen gelöscht. Unter ⚙️ Einstellungen neu verbinden.'); } renderKeys(); renderChain(); }); }, 400);
+else if (needsPin()) setTimeout(function () { ensureUnlocked().then(function () { renderKeys(); renderChain(); }); }, 400);

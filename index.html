@@ -41,7 +41,10 @@ footer{text-align:center;font-size:12px;color:var(--mut);padding:4px}
 .full #frame{position:fixed;inset:0;width:100vw;height:100vh;z-index:50;border:0;border-radius:0}
 #closeFull{display:none;position:fixed;top:calc(8px + env(safe-area-inset-top));right:8px;z-index:51}
 .full #closeFull{display:block}
-.kin{display:flex;gap:6px}.kin input{flex:1}.kin button{padding:6px 10px}
+.line{display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line)}.line button{margin-left:auto;padding:4px 10px;font-size:14px}
+.warnline{color:#ffe3a3;font-size:14px;margin:4px 0}
+#pinBox{display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.7);align-items:center;justify-content:center}
+#pinBox .card{width:min(92vw,360px)}#pinBox input{margin:6px 0;font-size:24px;letter-spacing:.3em;text-align:center}
 </style>
 </head>
 <body>
@@ -56,20 +59,24 @@ footer{text-align:center;font-size:12px;color:var(--mut);padding:4px}
  <section id="v-apps" class="view"><div id="apps"></div></section>
  <section id="v-keys" class="view">
   <h2 style="font-size:19px;margin:4px 0">Einstellungen · KI-Verbindung</h2>
-  <p class="mut">Deine Zugangsdaten bleiben nur auf diesem Handy (im Browser gespeichert). Sie gehen nie an mich oder an GitHub. Eine Verbindung reicht, mehrere = mehr Gratis-Limit.</p>
+  <p class="mut">Deine Zugangsdaten bleiben nur auf diesem Handy, verschlüsselt mit deiner PIN. Sie gehen nie an mich oder an GitHub. Eine Verbindung reicht, mehrere = mehr Gratis-Limit.</p>
   <div id="keyList"></div>
   <div class="card"><b>Reihenfolge der KIs</b><div id="chainInfo" class="mut"></div></div>
  </section>
  <section id="v-help" class="view"><div class="card">
   <b>So geht's</b><ol><li>Unter ⚙️ Einstellungen mindestens eine KI verbinden (am besten Google Gemini).</li><li>Unter 💬 deinen Wunsch schreiben oder mit 🎤 auf der Tastatur sprechen.</li><li>Die App erscheint sofort. Ändern? Einfach weiterschreiben, z. B. „Knopf grösser“.</li><li>💾 Speichern, dann findest du sie unter 📱 Apps.</li></ol>
   <b>Wenn eine KI am Limit ist</b><p>wechselt die Werkstatt von selbst zur nächsten Gratis-KI und gibt ihr nur eine kurze Zusammenfassung mit (Ziel, aktueller Code, letzter Wunsch/Fehler). Unter jeder Antwort steht, welche KI geantwortet hat.</p>
-  <b>Ehrlich gesagt</b><p>Kleine Apps (Timer, Rechner, Quiz, Listen, kleine Spiele) klappen gut. Grosse Programme mit Server, Login, Datenbank oder Daten aus dem Internet schaffen Gratis-KIs nicht zuverlässig. Gebaute Apps laufen abgeschirmt und kommen nicht an deine Schlüssel.</p>
-  <b>Schutz</b><p>Bevor etwas an eine KI geht, werden Passwörter, Schlüssel und IP-Adressen durch [REDACTED_SECRET] ersetzt. Bitte trotzdem nichts Privates in den Wunsch schreiben.</p>
+  <b>Ehrlich gesagt</b><p>Kleine Apps (Timer, Rechner, Quiz, Listen, kleine Spiele) klappen gut. Grosse Programme mit Server, Login, Datenbank oder Daten aus dem Internet schaffen Gratis-KIs nicht zuverlässig. Gebaute Apps laufen abgeschirmt und kommen nicht an deine Zugangsdaten.</p>
+  <b>Schutz</b><p>Bevor etwas an eine KI geht, werden Passwörter, Zugangsdaten und IP-Adressen durch [REDACTED_SECRET] ersetzt. Bitte trotzdem nichts Privates in den Wunsch schreiben.</p>
  </div></section>
 </main>
 <div id="composer"><textarea id="inp" placeholder="Dein Wunsch …"></textarea><button id="sendBtn" class="main">Los</button></div>
 <button id="closeFull">✕ Zurück</button>
 <footer id="ver"></footer>
-<script src="app.js"></script>
+<div id="pinBox"><div class="card"><b id="pinTitle"></b><div class="mut" id="pinWhy"></div>
+<input id="pin1" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="PIN">
+<input id="pin2" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="PIN wiederholen">
+<div class="mut" id="pinMsg"></div><div class="row"><button class="main" id="pinOk">OK</button><button id="pinCancel">Abbrechen</button><button id="pinForgot">PIN vergessen</button></div></div></div>
+<script src="app.js?v=3"></script>
 </body>
 </html>
