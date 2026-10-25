@@ -41,11 +41,12 @@ footer{text-align:center;font-size:12px;color:var(--mut);padding:4px}
 .full #frame{position:fixed;inset:0;width:100vw;height:100vh;z-index:50;border:0;border-radius:0}
 #closeFull{display:none;position:fixed;top:calc(8px + env(safe-area-inset-top));right:8px;z-index:51}
 .full #closeFull{display:block}
+.kin{display:flex;gap:6px}.kin input{flex:1}.kin button{padding:6px 10px}
 </style>
 </head>
 <body>
-<header><h1>🛠️ Wunsch-Werkstatt</h1><button id="newBtn">＋ Neu</button></header>
-<nav><button data-v="chat" class="on">💬 Wunsch</button><button data-v="apps">📱 Apps</button><button data-v="keys">🔑 Schlüssel</button><button data-v="help">❓</button></nav>
+<header><h1>🛠️ Wunsch-Werkstatt</h1><button id="newBtn">＋ Neu</button><button id="setBtn" aria-label="Einstellungen" title="Einstellungen" style="padding:8px 10px;background:transparent;border:0;opacity:.75">⚙️</button></header>
+<nav><button data-v="chat" class="on">💬 Wunsch</button><button data-v="apps">📱 Apps</button><button data-v="help">❓</button></nav>
 <main>
  <section id="v-chat" class="view on">
   <div id="log"></div>
@@ -54,12 +55,13 @@ footer{text-align:center;font-size:12px;color:var(--mut);padding:4px}
  </section>
  <section id="v-apps" class="view"><div id="apps"></div></section>
  <section id="v-keys" class="view">
-  <p class="mut">Deine Gratis-Schlüssel bleiben nur auf diesem Handy (im Browser gespeichert). Sie gehen nie an mich oder an GitHub. Ein Schlüssel reicht, mehr Schlüssel = mehr Gratis-Limit.</p>
+  <h2 style="font-size:19px;margin:4px 0">Einstellungen · KI-Verbindung</h2>
+  <p class="mut">Deine Zugangsdaten bleiben nur auf diesem Handy (im Browser gespeichert). Sie gehen nie an mich oder an GitHub. Eine Verbindung reicht, mehrere = mehr Gratis-Limit.</p>
   <div id="keyList"></div>
   <div class="card"><b>Reihenfolge der KIs</b><div id="chainInfo" class="mut"></div></div>
  </section>
  <section id="v-help" class="view"><div class="card">
-  <b>So geht's</b><ol><li>Unter 🔑 mindestens einen Gratis-Schlüssel einfügen (am besten Google Gemini).</li><li>Unter 💬 deinen Wunsch schreiben oder mit 🎤 auf der Tastatur sprechen.</li><li>Die App erscheint sofort. Ändern? Einfach weiterschreiben, z. B. „Knopf grösser“.</li><li>💾 Speichern, dann findest du sie unter 📱 Apps.</li></ol>
+  <b>So geht's</b><ol><li>Unter ⚙️ Einstellungen mindestens eine KI verbinden (am besten Google Gemini).</li><li>Unter 💬 deinen Wunsch schreiben oder mit 🎤 auf der Tastatur sprechen.</li><li>Die App erscheint sofort. Ändern? Einfach weiterschreiben, z. B. „Knopf grösser“.</li><li>💾 Speichern, dann findest du sie unter 📱 Apps.</li></ol>
   <b>Wenn eine KI am Limit ist</b><p>wechselt die Werkstatt von selbst zur nächsten Gratis-KI und gibt ihr nur eine kurze Zusammenfassung mit (Ziel, aktueller Code, letzter Wunsch/Fehler). Unter jeder Antwort steht, welche KI geantwortet hat.</p>
   <b>Ehrlich gesagt</b><p>Kleine Apps (Timer, Rechner, Quiz, Listen, kleine Spiele) klappen gut. Grosse Programme mit Server, Login, Datenbank oder Daten aus dem Internet schaffen Gratis-KIs nicht zuverlässig. Gebaute Apps laufen abgeschirmt und kommen nicht an deine Schlüssel.</p>
   <b>Schutz</b><p>Bevor etwas an eine KI geht, werden Passwörter, Schlüssel und IP-Adressen durch [REDACTED_SECRET] ersetzt. Bitte trotzdem nichts Privates in den Wunsch schreiben.</p>

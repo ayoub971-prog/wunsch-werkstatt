@@ -1,5 +1,5 @@
 /* Wunsch-Werkstatt: Wunsch -> Gratis-KI baut eine HTML-App. Schluessel nur im Browser (localStorage). */
-var APP_VERSION = 'v1';
+var APP_VERSION = 'v2';
 var $ = function (id) { return document.getElementById(id); };
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
@@ -76,7 +76,7 @@ function callChain(system, user, onSwitch) {
     }, function (e) {
       var s = e.status || 0;
       if (s === 429) COOL[item.provider + '/' + item.model] = Date.now() + 60000;
-      fails.push(label + ': ' + (s === 429 ? 'Limit erreicht' : s >= 500 ? 'Server-Fehler' : s === 0 ? 'keine Verbindung' : (s === 401 || s === 403) ? 'Schlüssel ungültig' : e.message));
+      fails.push(label + ': ' + (s === 429 ? 'Limit erreicht' : s >= 500 ? 'Server-Fehler' : s === 0 ? 'keine Verbindung' : (s === 401 || s === 403) ? 'Zugang ungültig' : e.message));
       return next();
     });
   }
@@ -172,7 +172,7 @@ function guessName(goal) { var w = goal.replace(/[^\wäöüÄÖÜ ]/g, ' ').trim
 function send() {
   if (busy) return;
   var raw = $('inp').value.trim(); if (!raw) return;
-  if (!CHAIN.some(function (x) { return keyOf(x.provider); })) { addMsg('warn', 'Zuerst unter 🔑 einen Gratis-Schlüssel einfügen (am besten Google Gemini).'); return; }
+  if (!CHAIN.some(function (x) { return keyOf(x.provider); })) { addMsg('warn', 'Zuerst unter ⚙️ Einstellungen eine KI verbinden (am besten Google Gemini).'); return; }
   var san = sanitize(raw);
   $('inp').value = '';
   addMsg('me', raw);
@@ -205,8 +205,8 @@ function run(req) {
   }
   attempt().catch(function (e) {
     wait.remove();
-    if (e.message === 'NOKEY') addMsg('warn', 'Zuerst unter 🔑 einen Gratis-Schlüssel einfügen.');
-    else addMsg('err', '😕 Gerade sind alle Gratis-KIs am Limit oder nicht erreichbar:\n' + (e.fails || [e.message]).join('\n') + '\nVersuch es in ein paar Minuten nochmals oder füge unter 🔑 einen weiteren Schlüssel hinzu.');
+    if (e.message === 'NOKEY') addMsg('warn', 'Zuerst unter ⚙️ Einstellungen eine KI verbinden.');
+    else addMsg('err', '😕 Gerade sind alle Gratis-KIs am Limit oder nicht erreichbar:\n' + (e.fails || [e.message]).join('\n') + '\nVersuch es in ein paar Minuten nochmals oder verbinde unter ⚙️ Einstellungen eine weitere KI.');
   }).then(function () { busy = false; $('sendBtn').disabled = false; });
 }
 
@@ -255,29 +255,33 @@ $('apps').addEventListener('click', function (e) {
 });
 
 /* ---------- Schluessel ---------- */
+function mask(k) { return '••••••' + (k.length > 12 ? k.slice(-4) : ''); }
 function renderKeys() {
   $('keyList').innerHTML = Object.keys(PROVIDERS).map(function (p) {
     var P = PROVIDERS[p], k = keyOf(p);
-    return '<div class="card" data-p="' + p + '"><b>' + P.name + '</b> ' + (k ? '✅' : '') + '<div class="mut">Gratis-Schlüssel holen: <a href="' + P.link + '" target="_blank" rel="noopener">' + P.link.replace('https://', '') + '</a> · ' + P.hint + '</div>' +
-      '<input type="password" autocomplete="off" placeholder="Schlüssel hier einfügen" value="' + esc(k) + '">' +
+    return '<div class="card" data-p="' + p + '"><b>' + P.name + '</b> ' + (k ? '✅' : '') + '<div class="mut">Gratis-Zugang holen: <a href="' + P.link + '" target="_blank" rel="noopener">' + P.link.replace('https://', '') + '</a> · ' + P.hint + '</div>' +
+      (k ? '<div class="mut">Gespeichert: ' + mask(k) + '</div>' : '') +
+      '<div class="kin"><input type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="' + (k ? 'Neuen Zugang einfügen (ersetzt)' : 'Zugang hier einfügen') + '"><button data-a="eye" aria-label="Anzeigen">👁</button></div>' +
       '<div class="row"><button class="main" data-a="save">Speichern</button><button data-a="test">Test</button><button data-a="del">Entfernen</button></div><div class="mut res"></div></div>';
   }).join('');
 }
 $('keyList').addEventListener('click', function (e) {
   var b = e.target.closest('button'), c = e.target.closest('.card'); if (!b || !c) return;
   var p = c.dataset.p, inp = c.querySelector('input'), res = c.querySelector('.res');
-  if (b.dataset.a === 'save') { lsSet('ww.key.' + p, inp.value.trim()); renderKeys(); renderChain(); }
+  if (b.dataset.a === 'eye') { inp.type = inp.type === 'password' ? 'text' : 'password'; }
+  else if (b.dataset.a === 'save') { if (inp.value.trim()) lsSet('ww.key.' + p, inp.value.trim()); renderKeys(); renderChain(); }
   else if (b.dataset.a === 'del') { try { localStorage.removeItem('ww.key.' + p); } catch (x) {} renderKeys(); renderChain(); }
   else if (b.dataset.a === 'test') {
-    lsSet('ww.key.' + p, inp.value.trim());
+    if (inp.value.trim()) { lsSet('ww.key.' + p, inp.value.trim()); inp.value = ''; inp.type = 'password'; c.querySelector('.mut + .mut, .mut:nth-of-type(2)'); }
+    if (!keyOf(p)) { res.textContent = 'Zuerst einen Zugang einfügen.'; return; }
     var item = CHAIN.find(function (x) { return x.provider === p; }) || DEFAULT_CHAIN.find(function (x) { return x.provider === p; });
     res.textContent = '⏳ teste ' + item.model + ' …';
     callOne(item, 'Antworte nur mit OK.', 'Test').then(function () { res.textContent = '✅ Funktioniert (' + item.model + ')'; },
-      function (er) { res.textContent = '❌ ' + (er.status === 429 ? 'Limit erreicht, später nochmals' : (er.status === 401 || er.status === 403 || er.status === 400) ? 'Schlüssel ungültig' : er.status === 0 ? 'Keine Verbindung' : er.message); });
+      function (er) { res.textContent = '❌ ' + (er.status === 429 ? 'Limit erreicht, später nochmals' : (er.status === 401 || er.status === 403 || er.status === 400) ? 'Zugang ungültig' : er.status === 0 ? 'Keine Verbindung' : er.message); });
   }
 });
 function renderChain() {
-  $('chainInfo').innerHTML = CHAIN.map(function (x, i) { return (i + 1) + '. ' + esc(PROVIDERS[x.provider].name.replace(' (optional)', '')) + ' · ' + esc(x.model) + (keyOf(x.provider) ? ' ✅' : ' (kein Schlüssel)'); }).join('<br>');
+  $('chainInfo').innerHTML = CHAIN.map(function (x, i) { return (i + 1) + '. ' + esc(PROVIDERS[x.provider].name.replace(' (optional)', '')) + ' · ' + esc(x.model) + (keyOf(x.provider) ? ' ✅' : ' (nicht verbunden)'); }).join('<br>');
 }
 
 /* ---------- Navigation ---------- */
@@ -296,6 +300,7 @@ $('shareBtn').addEventListener('click', function () { if (S.code) share(S.name, 
 $('fullBtn').addEventListener('click', function () { document.body.classList.add('full'); });
 $('closeFull').addEventListener('click', function () { document.body.classList.remove('full'); });
 function welcome() { $('log').innerHTML = ''; addMsg('ki', 'Hoi Ayoub! 👋 Schreib oder sprich (🎤 auf der Tastatur) deinen Wunsch, z. B. „Ein Timer fürs Velo mit grossen Zahlen“. Danach kannst du sagen, was ich ändern soll.'); }
+$('setBtn').addEventListener('click', function () { go('keys'); });
 $('newBtn').addEventListener('click', function () { S = { goal: '', code: '', history: [], name: '', id: null }; $('preview').className = ''; $('frame').srcdoc = ''; welcome(); go('chat'); });
 
 /* ---------- Version & Offline ---------- */
