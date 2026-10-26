@@ -1,5 +1,5 @@
-/* Wunsch-Werkstatt: Wunsch -> Gratis-KI baut eine HTML-App. Schluessel nur im Browser (localStorage). */
-var APP_VERSION = 'v4';
+/* Ideen-Werkstatt: Wunsch -> Gratis-KI baut eine HTML-App. Schluessel nur im Browser (localStorage). */
+var APP_VERSION = 'v5';
 var $ = function (id) { return document.getElementById(id); };
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }

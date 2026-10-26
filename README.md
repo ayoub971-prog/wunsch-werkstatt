@@ -1,4 +1,4 @@
-# Wunsch-Werkstatt
+# Ideen-Werkstatt
 
 Web-App (PWA): Wunsch eintippen oder sprechen, eine Gratis-KI baut daraus eine kleine HTML-App.
 

@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#1f6f5c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Werkstatt">
+<meta name="apple-mobile-web-app-title" content="Ideen-Werkstatt">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png">
@@ -14,7 +14,7 @@
 (function(){try{var sw=Math.min(screen.width,screen.height),w=window.innerWidth;var touch=matchMedia('(pointer:coarse)').matches||'ontouchstart' in window;
 if(touch&&sw&&sw<600&&w>sw*1.3){var m=document.querySelector('meta[name=viewport]');if(m)m.setAttribute('content','width='+sw+',initial-scale=1,viewport-fit=cover');
 setTimeout(function(){if(window.innerWidth>sw*1.3){document.documentElement.style.zoom=(window.innerWidth/sw).toFixed(2);document.documentElement.dataset.zoomfix='1';}},50);}}catch(e){}})();</script>
-<title>Wunsch-Werkstatt</title>
+<title>Ideen-Werkstatt</title>
 <style>
 :root{--bg:#10201c;--card:#18302a;--line:#2b4a41;--text:#eef6f2;--mut:#9fbdb2;--acc:#ffd166;--btn:#1f6f5c}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%;text-size-adjust:100%}html,body{margin:0;height:100%}
@@ -52,7 +52,7 @@ footer{text-align:center;font-size:14px;color:var(--mut);padding:4px}
 </style>
 </head>
 <body>
-<header><h1>🛠️ Wunsch-Werkstatt</h1><button id="newBtn">＋ Neu</button><button id="setBtn" aria-label="Einstellungen" title="Einstellungen" style="padding:8px 10px;background:transparent;border:0;opacity:.75">⚙️</button></header>
+<header><h1>🛠️ Ideen-Werkstatt</h1><button id="newBtn">＋ Neu</button><button id="setBtn" aria-label="Einstellungen" title="Einstellungen" style="padding:8px 10px;background:transparent;border:0;opacity:.75">⚙️</button></header>
 <nav><button data-v="chat" class="on">💬 Wunsch</button><button data-v="apps">📱 Apps</button><button data-v="help">❓</button></nav>
 <main>
  <section id="v-chat" class="view on">
@@ -81,6 +81,6 @@ footer{text-align:center;font-size:14px;color:var(--mut);padding:4px}
 <input id="pin1" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="PIN">
 <input id="pin2" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="PIN wiederholen">
 <div class="mut" id="pinMsg"></div><div class="row"><button class="main" id="pinOk">OK</button><button id="pinCancel">Abbrechen</button><button id="pinForgot">PIN vergessen</button></div></div></div>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>
